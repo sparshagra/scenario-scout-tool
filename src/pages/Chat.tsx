@@ -42,7 +42,7 @@ const Chat = () => {
     });
 
     try {
-      const response = await fetch("http://localhost:8000/upload", {
+      const response = await fetch("http://127.0.0.1:8000/upload", {
         method: "POST",
         body: formData,
       });
@@ -52,12 +52,12 @@ const Chat = () => {
       }
 
       const data = await response.json();
-      localStorage.setItem("documentId", data.document_id);
-      setUploadedFile(data.filename || `${files.length} file(s)`);
+      localStorage.setItem("documentId", data.doc_id);
+      setUploadedFile(Array.from(files).map(f => f.name).join(', '));
       
       toast({
         title: "Upload Successful",
-        description: `${data.filename || files.length + ' file(s)'} uploaded successfully`,
+        description: `${files.length} file(s) uploaded successfully`,
       });
     } catch (error) {
       toast({
@@ -88,12 +88,11 @@ const Chat = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/chat", {
+      const response = await fetch("http://127.0.0.1:8000/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: input,
-          document_id: documentId,
+          question: input,
         }),
       });
 
@@ -104,7 +103,7 @@ const Chat = () => {
       const data = await response.json();
       const assistantMessage: Message = {
         role: "assistant",
-        content: data.response,
+        content: data.answer,
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {

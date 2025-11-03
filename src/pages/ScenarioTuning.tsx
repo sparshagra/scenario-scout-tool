@@ -54,16 +54,8 @@ const ScenarioTuning = () => {
       }
 
       try {
-        const response = await fetch("http://localhost:8000/dashboard", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            document_id: documentId,
-            budget: 50,
-            timeline: 50,
-            workforce: 50,
-            market_cost: 50,
-          }),
+        const response = await fetch("http://127.0.0.1:8000/dashboard?mode=ai", {
+          method: "GET",
         });
 
         if (!response.ok) {

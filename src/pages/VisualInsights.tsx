@@ -45,7 +45,7 @@ const VisualInsights = () => {
 
       try {
         const response = await fetch(
-          `http://localhost:8000/document/${documentId}/highlights`
+          "http://127.0.0.1:8000/highlights"
         );
 
         if (!response.ok) {
@@ -74,11 +74,11 @@ const VisualInsights = () => {
     setSearchLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:8000/document/${documentId}/search`,
+        "http://127.0.0.1:8000/search",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: searchQuery }),
+          body: JSON.stringify({ question: searchQuery }),
         }
       );
 
@@ -89,7 +89,7 @@ const VisualInsights = () => {
       const data = await response.json();
       setSearchResults((prev) => [
         ...prev,
-        { query: searchQuery, result: data.result },
+        { query: searchQuery, result: data.answer },
       ]);
       setSearchQuery("");
     } catch (error) {
