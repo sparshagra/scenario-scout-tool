@@ -1,81 +1,56 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, CheckCircle2, AlertTriangle, FileText, TrendingUp } from "lucide-react";
+import { Loader2, Search, CheckCircle2, AlertTriangle, FileText, TrendingUp, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useApp } from "@/contexts/AppContext";
 import Navigation from "@/components/Navigation";
-
-interface Highlight {
-  text: string;
-  explanation?: string;
-}
-
-interface Risk {
-  text: string;
-  risk_flag?: string;
-}
-
-interface HighlightsData {
-  highlights: Highlight[];
-  risks: Risk[];
-}
 
 const VisualInsights = () => {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const { documentId, highlightsData, setHighlightsData, searchResults, setSearchResults } = useApp();
+  const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [data, setData] = useState<HighlightsData>({ highlights: [], risks: [] });
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Array<{
-    query: string;
-    result: string;
-    citations?: Array<{
-      chunk: string;
-      heading: string;
-      line: number;
-      quote: string;
-    }>;
-  }>>([]);
 
-  const documentId = localStorage.getItem("documentId");
+  const fetchHighlights = async () => {
+    if (!documentId) {
+      toast({
+        title: "No Document",
+        description: "Please upload a document first",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  useEffect(() => {
-    const fetchHighlights = async () => {
-      if (!documentId) {
-        toast({
-          title: "No Document",
-          description: "Please upload a document first",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
+    setLoading(true);
+    try {
+      const response = await fetch(
+        "https://whatif-ragbased-chatbot.onrender.com/highlights"
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch highlights");
       }
 
-      try {
-        const response = await fetch(
-          "https://whatif-ragbased-chatbot.onrender.com/highlights"
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch highlights");
-        }
-
-        const highlightsData: HighlightsData = await response.json();
-        setData(highlightsData);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load insights. Make sure the backend is running.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHighlights();
-  }, [documentId, toast]);
+      const data = await response.json();
+      setHighlightsData(data);
+      
+      toast({
+        title: "Insights Generated",
+        description: `Found ${data.highlights.length} highlights and ${data.risks.length} risks`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load insights. Make sure the backend is running.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim() || !documentId) return;
@@ -105,8 +80,8 @@ const VisualInsights = () => {
         parsedData = { answer: data.answer, citations: [] };
       }
       
-      setSearchResults((prev) => [
-        ...prev,
+      setSearchResults([
+        ...searchResults,
         {
           query: searchQuery,
           result: parsedData.answer || data.answer,
@@ -125,19 +100,6 @@ const VisualInsights = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
-        <main className="container mx-auto p-4 max-w-6xl">
-          <div className="flex items-center justify-center h-[60vh]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
@@ -145,64 +107,102 @@ const VisualInsights = () => {
       <main className="container mx-auto p-4 max-w-6xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
-            AI Visual Insights
+            Document Insights
           </h1>
           <p className="text-muted-foreground">
             Discover key highlights and potential risks in your document
           </p>
         </div>
 
-        {/* Overview Cards */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <Card className="shadow-[var(--shadow-card)] bg-gradient-to-br from-success/10 to-success/5 border-success/20">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Key Highlights Found
-                  </p>
-                  <p className="text-4xl font-bold text-success">
-                    {data.highlights.length}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-success" />
-                </div>
-              </div>
+        {/* Generate Insights Button */}
+        {!highlightsData.highlights.length && !highlightsData.risks.length && (
+          <Card className="mb-8 shadow-[var(--shadow-card)]">
+            <CardContent className="p-8 text-center">
+              <Sparkles className="w-12 h-12 mx-auto mb-4 text-primary" />
+              <h3 className="text-xl font-semibold mb-2">Generate Document Insights</h3>
+              <p className="text-muted-foreground mb-6">
+                Analyze your document to discover key highlights and identify potential risks
+              </p>
+              <Button
+                onClick={fetchHighlights}
+                disabled={loading || !documentId}
+                className="bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Insights...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Insights
+                  </>
+                )}
+              </Button>
+              {!documentId && (
+                <p className="text-sm text-muted-foreground mt-4">
+                  Please upload a document first in the Chat tab
+                </p>
+              )}
             </CardContent>
           </Card>
+        )}
 
-          <Card className="shadow-[var(--shadow-card)] bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">
-                    Risks Identified
-                  </p>
-                  <p className="text-4xl font-bold text-warning">
-                    {data.risks.length}
-                  </p>
+        {/* Overview Cards */}
+        {(highlightsData.highlights.length > 0 || highlightsData.risks.length > 0) && (
+          <div className="grid md:grid-cols-2 gap-6 mb-8">
+            <Card className="shadow-[var(--shadow-card)] bg-gradient-to-br from-success/10 to-success/5 border-success/20">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Key Highlights Found
+                    </p>
+                    <p className="text-4xl font-bold text-success">
+                      {highlightsData.highlights.length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-success" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-warning" />
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-[var(--shadow-card)] bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                      Risks Identified
+                    </p>
+                    <p className="text-4xl font-bold text-warning">
+                      {highlightsData.risks.length}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
+                    <AlertTriangle className="w-6 h-6 text-warning" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Highlights Section */}
-        <Card className="mb-8 shadow-[var(--shadow-card)]">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-success" />
-              Key Highlights
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.highlights.length > 0 ? (
-              <div className="space-y-4">
-                {data.highlights.map((highlight, index) => (
+        {(highlightsData.highlights.length > 0 || highlightsData.risks.length > 0) && (
+          <Card className="mb-8 shadow-[var(--shadow-card)]">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-success" />
+                Key Highlights
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {highlightsData.highlights.length > 0 ? (
+                <div className="space-y-4">
+                  {highlightsData.highlights.map((highlight, index) => (
                   <div
                     key={index}
                     className="p-4 rounded-lg bg-success/5 border border-success/20 hover:bg-success/10 transition-colors"
@@ -225,8 +225,10 @@ const VisualInsights = () => {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Risks Section */}
+        {(highlightsData.highlights.length > 0 || highlightsData.risks.length > 0) && (
         <Card className="mb-8 shadow-[var(--shadow-card)]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -235,9 +237,9 @@ const VisualInsights = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {data.risks.length > 0 ? (
+            {highlightsData.risks.length > 0 ? (
               <div className="space-y-4">
-                {data.risks.map((risk, index) => (
+                {highlightsData.risks.map((risk, index) => (
                   <div
                     key={index}
                     className="p-4 rounded-lg bg-warning/5 border border-warning/20 hover:bg-warning/10 transition-colors"
@@ -265,6 +267,7 @@ const VisualInsights = () => {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Search Chatbot */}
         <Card className="shadow-[var(--shadow-card)]">

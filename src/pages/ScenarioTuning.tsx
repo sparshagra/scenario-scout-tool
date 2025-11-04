@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Loader2, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useApp } from "@/contexts/AppContext";
 import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 
@@ -34,16 +35,9 @@ interface ScoreData {
 
 const ScenarioTuning = () => {
   const { toast } = useToast();
+  const { documentId, scoreData: globalScoreData, setScoreData: setGlobalScoreData, adjustedScores, setAdjustedScores } = useApp();
   const [loading, setLoading] = useState(false);
-  const [scoreData, setScoreData] = useState<ScoreData | null>(null);
   const [currentScore, setCurrentScore] = useState(0);
-  const [sliderValues, setSliderValues] = useState({
-    cost: 3,
-    timeline: 3,
-    compliance: 3,
-    design: 3,
-    sustainability: 3,
-  });
   const [mostImpactfulParam, setMostImpactfulParam] = useState<string | null>(null);
 
   const weights = {
@@ -54,7 +48,19 @@ const ScenarioTuning = () => {
     sustainability: 0.2,
   };
 
-  const documentId = localStorage.getItem("documentId");
+  // Load from global state on mount
+  useEffect(() => {
+    if (globalScoreData) {
+      setCurrentScore(globalScoreData.final_score);
+      if (adjustedScores) {
+        const newScore = Object.entries(adjustedScores).reduce(
+          (sum, [key, value]) => sum + weights[key as keyof typeof weights] * value,
+          0
+        );
+        setCurrentScore(newScore);
+      }
+    }
+  }, [globalScoreData, adjustedScores]);
 
   const fetchScoreData = async () => {
     if (!documentId) {
@@ -77,11 +83,11 @@ const ScenarioTuning = () => {
       }
 
       const data: ScoreData = await response.json();
-      setScoreData(data);
+      setGlobalScoreData(data);
       setCurrentScore(data.final_score);
       
       // Set initial slider values from API scores
-      setSliderValues({
+      setAdjustedScores({
         cost: data.scores.cost.score,
         timeline: data.scores.timeline.score,
         compliance: data.scores.compliance.score,
@@ -104,7 +110,7 @@ const ScenarioTuning = () => {
     }
   };
 
-  const recalculateScore = (newValues: typeof sliderValues) => {
+  const recalculateScore = (newValues: {cost: number; timeline: number; compliance: number; design: number; sustainability: number}) => {
     // Calculate new final score using weights
     const newScore = Object.keys(weights).reduce((total, param) => {
       const key = param as keyof typeof weights;
@@ -114,13 +120,13 @@ const ScenarioTuning = () => {
     setCurrentScore(newScore);
 
     // Find which parameter change had the most impact
-    if (scoreData) {
+    if (globalScoreData) {
       let maxImpact = 0;
       let maxParam = "";
       
       Object.keys(weights).forEach((param) => {
         const key = param as keyof typeof weights;
-        const originalValue = scoreData.scores[key].score;
+        const originalValue = globalScoreData.scores[key].score;
         const impact = Math.abs(weights[key] * (newValues[key] - originalValue));
         
         if (impact > maxImpact) {
@@ -133,9 +139,10 @@ const ScenarioTuning = () => {
     }
   };
 
-  const handleSliderChange = (param: keyof typeof sliderValues, value: number[]) => {
-    const newValues = { ...sliderValues, [param]: value[0] };
-    setSliderValues(newValues);
+  const handleSliderChange = (param: keyof typeof weights, value: number[]) => {
+    if (!adjustedScores) return;
+    const newValues = { ...adjustedScores, [param]: value[0] };
+    setAdjustedScores(newValues);
     recalculateScore(newValues);
   };
 
@@ -165,7 +172,7 @@ const ScenarioTuning = () => {
           </p>
         </div>
 
-        {!scoreData && (
+        {!globalScoreData && (
           <Card className="mb-8 shadow-[var(--shadow-card)]">
             <CardContent className="p-8 text-center">
               <p className="text-muted-foreground mb-4">
@@ -190,7 +197,7 @@ const ScenarioTuning = () => {
           </Card>
         )}
 
-        {scoreData && (
+        {globalScoreData && adjustedScores && (
           <>
             {/* Score Display */}
             <Card className={`mb-8 shadow-[var(--shadow-card)] bg-gradient-to-br ${getScoreGradient(currentScore)} border-2`}>
@@ -226,8 +233,8 @@ const ScenarioTuning = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <h3 className="font-semibold mb-2">{scoreData.strength.what}</h3>
-                  <p className="text-sm text-muted-foreground">{scoreData.strength.why}</p>
+                  <h3 className="font-semibold mb-2">{globalScoreData.strength.what}</h3>
+                  <p className="text-sm text-muted-foreground">{globalScoreData.strength.why}</p>
                 </CardContent>
               </Card>
 
@@ -239,8 +246,8 @@ const ScenarioTuning = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <h3 className="font-semibold mb-2">{scoreData.weakness.what}</h3>
-                  <p className="text-sm text-muted-foreground">{scoreData.weakness.why}</p>
+                  <h3 className="font-semibold mb-2">{globalScoreData.weakness.what}</h3>
+                  <p className="text-sm text-muted-foreground">{globalScoreData.weakness.why}</p>
                 </CardContent>
               </Card>
             </div>
@@ -252,7 +259,7 @@ const ScenarioTuning = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {scoreData.next_steps.map((step, index) => (
+                  {globalScoreData.next_steps.map((step, index) => (
                     <div key={index} className="border-l-4 border-primary pl-4">
                       <h3 className="font-semibold mb-1">{index + 1}. {step.step}</h3>
                       <p className="text-sm text-muted-foreground mb-2">{step.why}</p>
@@ -290,13 +297,13 @@ const ScenarioTuning = () => {
                     <label className="text-sm font-medium">Cost</label>
                     <div className="text-right">
                       <span className={`text-2xl font-bold ${mostImpactfulParam === 'cost' ? 'text-primary' : ''}`}>
-                        {sliderValues.cost.toFixed(1)}
+                        {adjustedScores.cost.toFixed(1)}
                       </span>
                       <span className="text-xs text-muted-foreground ml-1">/5</span>
                     </div>
                   </div>
                   <Slider
-                    value={[sliderValues.cost]}
+                    value={[adjustedScores.cost]}
                     onValueChange={(value) => handleSliderChange("cost", value)}
                     min={1}
                     max={5}
@@ -304,7 +311,7 @@ const ScenarioTuning = () => {
                     className="w-full"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {scoreData.scores.cost.why}
+                    {globalScoreData.scores.cost.why}
                   </p>
                 </div>
 
@@ -314,13 +321,13 @@ const ScenarioTuning = () => {
                     <label className="text-sm font-medium">Timeline</label>
                     <div className="text-right">
                       <span className={`text-2xl font-bold ${mostImpactfulParam === 'timeline' ? 'text-primary' : ''}`}>
-                        {sliderValues.timeline.toFixed(1)}
+                        {adjustedScores.timeline.toFixed(1)}
                       </span>
                       <span className="text-xs text-muted-foreground ml-1">/5</span>
                     </div>
                   </div>
                   <Slider
-                    value={[sliderValues.timeline]}
+                    value={[adjustedScores.timeline]}
                     onValueChange={(value) => handleSliderChange("timeline", value)}
                     min={1}
                     max={5}
@@ -328,7 +335,7 @@ const ScenarioTuning = () => {
                     className="w-full"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {scoreData.scores.timeline.why}
+                    {globalScoreData.scores.timeline.why}
                   </p>
                 </div>
 
@@ -338,13 +345,13 @@ const ScenarioTuning = () => {
                     <label className="text-sm font-medium">Compliance</label>
                     <div className="text-right">
                       <span className={`text-2xl font-bold ${mostImpactfulParam === 'compliance' ? 'text-primary' : ''}`}>
-                        {sliderValues.compliance.toFixed(1)}
+                        {adjustedScores.compliance.toFixed(1)}
                       </span>
                       <span className="text-xs text-muted-foreground ml-1">/5</span>
                     </div>
                   </div>
                   <Slider
-                    value={[sliderValues.compliance]}
+                    value={[adjustedScores.compliance]}
                     onValueChange={(value) => handleSliderChange("compliance", value)}
                     min={1}
                     max={5}
@@ -352,7 +359,7 @@ const ScenarioTuning = () => {
                     className="w-full"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {scoreData.scores.compliance.why}
+                    {globalScoreData.scores.compliance.why}
                   </p>
                 </div>
 
@@ -362,13 +369,13 @@ const ScenarioTuning = () => {
                     <label className="text-sm font-medium">Design</label>
                     <div className="text-right">
                       <span className={`text-2xl font-bold ${mostImpactfulParam === 'design' ? 'text-primary' : ''}`}>
-                        {sliderValues.design.toFixed(1)}
+                        {adjustedScores.design.toFixed(1)}
                       </span>
                       <span className="text-xs text-muted-foreground ml-1">/5</span>
                     </div>
                   </div>
                   <Slider
-                    value={[sliderValues.design]}
+                    value={[adjustedScores.design]}
                     onValueChange={(value) => handleSliderChange("design", value)}
                     min={1}
                     max={5}
@@ -376,7 +383,7 @@ const ScenarioTuning = () => {
                     className="w-full"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {scoreData.scores.design.why}
+                    {globalScoreData.scores.design.why}
                   </p>
                 </div>
 
@@ -386,13 +393,13 @@ const ScenarioTuning = () => {
                     <label className="text-sm font-medium">Sustainability</label>
                     <div className="text-right">
                       <span className={`text-2xl font-bold ${mostImpactfulParam === 'sustainability' ? 'text-primary' : ''}`}>
-                        {sliderValues.sustainability.toFixed(1)}
+                        {adjustedScores.sustainability.toFixed(1)}
                       </span>
                       <span className="text-xs text-muted-foreground ml-1">/5</span>
                     </div>
                   </div>
                   <Slider
-                    value={[sliderValues.sustainability]}
+                    value={[adjustedScores.sustainability]}
                     onValueChange={(value) => handleSliderChange("sustainability", value)}
                     min={1}
                     max={5}
@@ -400,7 +407,7 @@ const ScenarioTuning = () => {
                     className="w-full"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    {scoreData.scores.sustainability.why}
+                    {globalScoreData.scores.sustainability.why}
                   </p>
                 </div>
               </CardContent>

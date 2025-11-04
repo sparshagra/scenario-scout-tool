@@ -33,7 +33,7 @@ const Navigation = () => {
             </NavLink>
             <NavLink to="/visual-insights" className={navLinkClass}>
               <TrendingUp className="w-4 h-4" />
-              <span className="hidden sm:inline">Visual Insights</span>
+              <span className="hidden sm:inline">Document Insights</span>
             </NavLink>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Send, Upload, FileText, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useApp } from "@/contexts/AppContext";
 import Navigation from "@/components/Navigation";
 
 interface Message {
@@ -21,15 +22,13 @@ interface Message {
 const Chat = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { documentId, setDocumentId, messages, setMessages } = useApp();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const documentId = localStorage.getItem("documentId");
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -58,7 +57,7 @@ const Chat = () => {
       }
 
       const data = await response.json();
-      localStorage.setItem("documentId", data.doc_id);
+      setDocumentId(data.doc_id);
       setUploadedFile(Array.from(files).map(f => f.name).join(', '));
       
       toast({
