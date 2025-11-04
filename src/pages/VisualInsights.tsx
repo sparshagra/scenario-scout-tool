@@ -27,7 +27,16 @@ const VisualInsights = () => {
   const [searchLoading, setSearchLoading] = useState(false);
   const [data, setData] = useState<HighlightsData>({ highlights: [], risks: [] });
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Array<{ query: string; result: string }>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{
+    query: string;
+    result: string;
+    citations?: Array<{
+      chunk: string;
+      heading: string;
+      line: number;
+      quote: string;
+    }>;
+  }>>([]);
 
   const documentId = localStorage.getItem("documentId");
 
@@ -87,9 +96,22 @@ const VisualInsights = () => {
       }
 
       const data = await response.json();
+      
+      // Parse the response to extract answer and citations
+      let parsedData;
+      try {
+        parsedData = typeof data.answer === 'string' ? JSON.parse(data.answer) : data.answer;
+      } catch {
+        parsedData = { answer: data.answer, citations: [] };
+      }
+      
       setSearchResults((prev) => [
         ...prev,
-        { query: searchQuery, result: data.answer },
+        {
+          query: searchQuery,
+          result: parsedData.answer || data.answer,
+          citations: parsedData.citations || []
+        },
       ]);
       setSearchQuery("");
     } catch (error) {
@@ -269,6 +291,23 @@ const VisualInsights = () => {
                           {result.result}
                         </div>
                       </div>
+                      
+                      {/* Show citations if available */}
+                      {result.citations && result.citations.length > 0 && (
+                        <div className="flex justify-start">
+                          <div className="bg-muted/50 border border-border rounded-lg px-3 py-2 max-w-[80%]">
+                            <p className="text-xs font-semibold mb-2 text-muted-foreground">📄 Source References:</p>
+                            <div className="space-y-1.5">
+                              {result.citations.map((citation, idx) => (
+                                <div key={idx} className="text-xs">
+                                  <p className="font-medium">{citation.chunk} - {citation.heading} (Line {citation.line})</p>
+                                  <p className="text-muted-foreground italic mt-0.5">"{citation.quote}"</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

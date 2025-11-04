@@ -10,6 +10,12 @@ import Navigation from "@/components/Navigation";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  citations?: Array<{
+    chunk: string;
+    heading: string;
+    line: number;
+    quote: string;
+  }>;
 }
 
 const Chat = () => {
@@ -101,9 +107,19 @@ const Chat = () => {
       }
 
       const data = await response.json();
+      
+      // Parse the response to extract answer and citations
+      let parsedData;
+      try {
+        parsedData = typeof data.answer === 'string' ? JSON.parse(data.answer) : data.answer;
+      } catch {
+        parsedData = { answer: data.answer, citations: [] };
+      }
+      
       const assistantMessage: Message = {
         role: "assistant",
-        content: data.answer,
+        content: parsedData.answer || data.answer,
+        citations: parsedData.citations || []
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
@@ -196,21 +212,39 @@ const Chat = () => {
                 </div>
               ) : (
                 messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={`flex ${
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
+                  <div key={index} className="space-y-2">
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                        message.role === "user"
-                          ? "bg-gradient-to-r from-primary to-accent text-primary-foreground"
-                          : "bg-secondary text-secondary-foreground"
+                      className={`flex ${
+                        message.role === "user" ? "justify-end" : "justify-start"
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{message.content}</p>
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                          message.role === "user"
+                            ? "bg-gradient-to-r from-primary to-accent text-primary-foreground"
+                            : "bg-secondary text-secondary-foreground"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      </div>
                     </div>
+                    
+                    {/* Show citations if available */}
+                    {message.role === "assistant" && message.citations && message.citations.length > 0 && (
+                      <div className="flex justify-start">
+                        <div className="max-w-[80%] rounded-lg px-3 py-2 bg-muted/50 border border-border">
+                          <p className="text-xs font-semibold mb-2 text-muted-foreground">📄 Source References:</p>
+                          <div className="space-y-1.5">
+                            {message.citations.map((citation, idx) => (
+                              <div key={idx} className="text-xs">
+                                <p className="font-medium">{citation.chunk} - {citation.heading} (Line {citation.line})</p>
+                                <p className="text-muted-foreground italic mt-0.5">"{citation.quote}"</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
