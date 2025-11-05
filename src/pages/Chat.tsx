@@ -308,22 +308,7 @@ const Chat = () => {
                       </div>
                     </div>
                     
-                    {/* Show citations if available */}
-                    {message.role === "assistant" && message.citations && message.citations.length > 0 && (
-                      <div className="flex justify-start">
-                        <div className="max-w-[80%] rounded-lg px-3 py-2 bg-muted/50 border border-border">
-                          <p className="text-xs font-semibold mb-2 text-muted-foreground">📄 Source References:</p>
-                          <div className="space-y-1.5">
-                            {message.citations.map((citation, idx) => (
-                              <div key={idx} className="text-xs">
-                                <p className="font-medium">{citation.chunk} - {citation.heading} (Line {citation.line})</p>
-                                <p className="text-muted-foreground italic mt-0.5">"{citation.quote}"</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    
                   </div>
                 ))
               )}
