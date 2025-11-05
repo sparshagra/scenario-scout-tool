@@ -9,11 +9,10 @@ import { Button } from "@/components/ui/button";
 
 // === Slider Dependency Logic (mirrors rag_chain.py) ===
 const PARAM_WEIGHTS = {
-  cost:       { self: 0.5, timeline: 0.2, safety: 0.15, compliance: 0.1, design: 0.05 },
-  timeline:   { self: 0.5, design: 0.2, compliance: 0.15, safety: 0.1, cost: 0.05 },
-  safety:     { self: 0.5, compliance: 0.2, design: 0.15, cost: 0.1, timeline: 0.05 },
-  compliance: { self: 0.5, design: 0.2, timeline: 0.15, safety: 0.1, cost: 0.05 },
-  design:     { self: 0.5, compliance: 0.2, timeline: 0.15, cost: 0.1, safety: 0.05 },
+  cost:       { self: 0.5, timeline: 0.3, compliance: 0.1, design: 0.1 },
+  timeline:   { self: 0.5, cost: 0.2, compliance: 0.2, design: 0.1 },
+  compliance: { self: 0.5, cost: 0.2, timeline: 0.2, design: 0.1 },
+  design:     { self: 0.5, cost: 0.2, timeline: 0.2, compliance: 0.1 },
 };
 
 const FINAL_WEIGHTS = { cost: 0.3, timeline: 0.2, compliance: 0.2, design: 0.1, sustainability: 0.2 };
@@ -78,22 +77,36 @@ const ScenarioTuning = () => {
 const recalcScores = (changedParam: keyof typeof weights, newValue: number) => {
   if (!adjustedScores) return;
 
-  const newScores = { ...adjustedScores, [changedParam]: newValue };
+  // Always start with default numeric values
+  const safeScores = {
+    cost: adjustedScores.cost ?? 3,
+    timeline: adjustedScores.timeline ?? 3,
+    compliance: adjustedScores.compliance ?? 3,
+    design: adjustedScores.design ?? 3,
+    sustainability: adjustedScores.sustainability ?? 3,
+  };
 
-  // update dependent sliders dynamically using PARAM_WEIGHTS
+  const newScores = { ...safeScores, [changedParam]: newValue };
+
+  // Update dependent sliders dynamically (excluding sustainability since it’s independent)
   Object.keys(PARAM_WEIGHTS).forEach((param) => {
-    if (param === changedParam) return;
+    if (param === changedParam || param === "safety") return;
+
     const w = PARAM_WEIGHTS[param as keyof typeof PARAM_WEIGHTS];
-    const related = ["cost", "timeline", "compliance", "design", "safety"];
+    const related = ["cost", "timeline", "compliance", "design"];
     let score = 0;
+
     related.forEach((r) => {
-      if (r === param) score += (w.self || 0.5) * (newScores[r as keyof typeof newScores] ?? adjustedScores[r as keyof typeof adjustedScores]);
-      else score += (w[r as keyof typeof w] || 0) * (newScores[r as keyof typeof newScores] ?? adjustedScores[r as keyof typeof adjustedScores]);
+      const refVal = newScores[r as keyof typeof newScores] ?? safeScores[r as keyof typeof safeScores] ?? 3;
+      if (r === param) score += (w.self || 0.5) * refVal;
+      else score += (w[r as keyof typeof w] || 0) * refVal;
     });
+
+    // normalize and clamp between 1–5
     newScores[param as keyof typeof newScores] = Math.min(5, Math.max(1, parseFloat(score.toFixed(2))));
   });
 
-  // update final weighted score
+  // Calculate weighted final score
   const total =
     weights.cost * newScores.cost +
     weights.timeline * newScores.timeline +
@@ -104,6 +117,7 @@ const recalcScores = (changedParam: keyof typeof weights, newValue: number) => {
   setAdjustedScores(newScores);
   setCurrentScore(parseFloat(total.toFixed(2)));
 };
+
 
 
   const fetchScoreData = async () => {
