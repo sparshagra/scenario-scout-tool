@@ -470,8 +470,8 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) for deta
 
 **The Multiverse Task Force**
 
-- **Sparsh Agarwal** - System Integration & RAG Implementation
-- **Divy Dobariya** - Backend Development & AI/ML and LangChain Architecture
+- **Sparsh Agarwal** — Front End and System Integration
+- **Divy Dobariya** — Backend Development & AI/ML, Langchain, RAG Architechture
 
 **Built for Aurigo Hackathon 2025** 🚀
 
