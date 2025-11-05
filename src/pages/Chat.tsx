@@ -93,7 +93,7 @@ const Chat = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("https://whatif-ragbased-chatbot.onrender.com/search", {
+      const response = await fetch("https://whatif-ragbased-chatbot.onrender.com/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
