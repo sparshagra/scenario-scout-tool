@@ -107,12 +107,39 @@ const Chat = () => {
       const data = await response.json();
       
       // Parse the response to extract answer and citations
-      let parsedData;
+      // let parsedData;
+      // try {
+      //   parsedData = typeof data.answer === 'string' ? JSON.parse(data.answer) : data.answer;
+      // } catch {
+      //   parsedData = { answer: data.answer, citations: [] };
+      // }
+      // ✅ Parse API response safely — backend already sends proper JSON
+      let parsedData: any;
       try {
-        parsedData = typeof data.answer === 'string' ? JSON.parse(data.answer) : data.answer;
-      } catch {
-        parsedData = { answer: data.answer, citations: [] };
+        if (typeof data === "string") {
+          parsedData = JSON.parse(data);
+        } else {
+          parsedData = data; // already JSON
+        }
+      } catch (err) {
+        console.warn("Response parsing error:", err);
+        parsedData = { answer: data.answer || "No response", citations: [] };
       }
+
+    // If still only contains answer, try to recover by parsing answer if it's JSON-like
+    if (
+      parsedData &&
+      parsedData.answer &&
+      typeof parsedData.answer === "string" &&
+      parsedData.answer.trim().startsWith("{")
+    ) {
+      try {
+        parsedData = JSON.parse(parsedData.answer);
+      } catch {
+        // ignore if not parseable
+      }
+    }
+
       
       // const assistantMessage: Message = {
       //   role: "assistant",
