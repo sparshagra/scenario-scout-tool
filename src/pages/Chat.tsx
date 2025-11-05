@@ -114,11 +114,65 @@ const Chat = () => {
         parsedData = { answer: data.answer, citations: [] };
       }
       
+      // const assistantMessage: Message = {
+      //   role: "assistant",
+      //   content: parsedData.answer || data.answer,
+      //   citations: parsedData.citations || []
+      // };
+
+      // Helper to extract key insights compactly
+      const extractInsights = (obj: any): string => {
+        if (!obj || typeof obj !== "object") return "";
+        let out = "";
+
+        const sections = ["cost_impact", "schedule_impact", "resource_impact", "recommended_mitigation"];
+        for (const key of sections) {
+          if (obj[key]?.analysis) {
+            out += `\n\n💡 ${key.replace("_", " ").toUpperCase()}: ${obj[key].analysis}`;
+            if (obj[key]?.why) out += `\n🧭 Why: ${obj[key].why}`;
+          }
+        }
+
+        // Add key consequences (first 2)
+        if (Array.isArray(obj.consequences) && obj.consequences.length > 0) {
+          const topCons = obj.consequences.slice(0, 2);
+          out += `\n\n⚠️ Key Consequences:`;
+          for (const c of topCons) {
+            out += `\n- ${c.what}: ${c.why}`;
+          }
+        }
+
+        // Add alternative strategy (first one)
+        if (Array.isArray(obj.alternative_strategies) && obj.alternative_strategies[0]) {
+          const alt = obj.alternative_strategies[0];
+          out += `\n\n🛠️ Alternative Strategy: ${alt.strategy}\nWhy: ${alt.why}`;
+        }
+
+        return out.trim();
+      };
+
+      const combinedContent = (() => {
+        if (parsedData.answer) {
+          const insights = extractInsights(parsedData);
+          return `${parsedData.answer}\n\n${insights}`;
+        }
+        return JSON.stringify(parsedData, null, 2);
+      })();
+
       const assistantMessage: Message = {
         role: "assistant",
-        content: parsedData.answer || data.answer,
-        citations: parsedData.citations || []
+        content: combinedContent,
+        citations:
+          parsedData.citations ||
+          parsedData.cost_impact?.citations ||
+          parsedData.recommended_mitigation?.citations ||
+          []
       };
+
+
+
+
+
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       toast({
