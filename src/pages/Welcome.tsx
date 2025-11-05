@@ -33,7 +33,10 @@ const Welcome = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden p-4 welcome-bg">
+    <div
+      className="min-h-screen flex items-center justify-center relative bg-cover bg-center bg-no-repeat p-4"
+      style={{ backgroundImage: "url('/Welcome_bg.png')" }}
+    >
       <Card className="w-full max-w-md shadow-[var(--shadow-card)] border-border/50 backdrop-blur-lg bg-white/90">
         <CardHeader className="text-center space-y-4">
           <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center glow-bot">
